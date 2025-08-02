@@ -1,0 +1,27 @@
+function [xSIGMA,xSERVER,tab_event] = manage_event_A(xSIGMA,xSERVER1,xSERVER2,tab_event,lambda,mu1,mu2)
+global K
+global Losses
+global C
+clk = min(tab_event);
+
+%check if queue is full
+if xSIGMA < K
+    xSIGMA = xSIGMA +1;
+else
+    Losses = Losses +1;
+end
+
+if xSERVER == C
+    xSERVER = xSERVER-1;
+    %service time for first server
+    tab_event(2) = clk+rand_exp(mu1);
+elseif xSERVER == (C-1)
+    xSERVER = xSERVER -1;
+    %service time for second server
+    tab_event(3) = clk+rand_exp(mu2);
+end
+%anyway next arrival
+    tab_event(1) = clk + rand_exp(lambda);
+
+
+end

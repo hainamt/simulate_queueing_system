@@ -1,0 +1,38 @@
+clear
+close
+
+duration_simulation = 50000;
+rng(9);
+
+lambda = 1/10;
+mu1 = 1/20;
+mu2 = mu1;
+C = 2;
+K = 80;
+%% Initialization
+
+xSIGMA = 0; %# of users in the system
+
+xSERVER = C; %# of available servers, can be 2-1-0
+
+tab_event =[
+    1E20 %arrival
+    1E20 %server1 finish
+    1E20 %server2 finish
+    ];
+
+
+%% First event
+clk = 0;
+count_events = 1;
+tab_event(1) = clk + rand_exp(lambda);
+
+%these should be used for plotting
+abscissa_t(count_events) = clk;
+vect_event(count_events) = 0;
+elem_in_syst(count_events) = xSIGMA;
+
+%% Simulation loop
+while clk < duration_simulation
+    [clk_next_event, type_next_event] = min(tab_event);
+end
