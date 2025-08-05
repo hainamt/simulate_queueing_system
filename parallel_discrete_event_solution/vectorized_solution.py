@@ -3,13 +3,10 @@ from typing import Optional
 from configuration import SimulationConfiguration
 from dataclasses import dataclass
 import numpy as np
-from pprint import pprint
-from time import time
-
 
 @dataclass
 class VectorizedSimulationResult:
-    simulation_config: SimulationConfiguration
+    config: SimulationConfiguration
     num_arrivals: np.ndarray
     num_losses: np.ndarray
     average_num_users: np.ndarray  # shape: (num_simulations,)
@@ -17,7 +14,7 @@ class VectorizedSimulationResult:
 
     def to_dict(self):
         return {
-            "simulation_config": self.simulation_config.to_dict(),
+            "config": self.config.to_dict(),
             "num_arrivals": self.num_arrivals.tolist(),
             "num_losses": self.num_losses.tolist(),
             "average_num_users": self.average_num_users.tolist(),
@@ -180,7 +177,7 @@ class VectorizedQueueSimulator:
         self.event_table[active_sims, 0] = self.clk[active_sims] + self.rand_exp(active_sims, is_service=False)
 
         iteration = 0
-        max_iterations = 1000000  # Safety limit
+        max_iterations = 1000000
 
         while np.any(self.active_simulations) and iteration < max_iterations:
             active_sims = np.where(self.active_simulations)[0]
@@ -246,7 +243,7 @@ class VectorizedQueueSimulator:
             average_num_users[valid_times] = weighted_sums[valid_times] / total_times[valid_times]
 
         self.result = VectorizedSimulationResult(
-            simulation_config=self.config,
+            config=self.config,
             num_arrivals=self.num_arrivals.copy(),
             num_losses=self.num_losses.copy(),
             average_num_users=average_num_users.copy(),
