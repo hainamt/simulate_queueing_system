@@ -19,7 +19,7 @@ function [Tab_events,xIN,xSIGMA,xOUT] = manage_event_A2(Tab_events,xIN,lambda,mu
                 break;
             end
         end
-    Previous_queue_change_instant = clk;
+        Previous_queue_change_instant = clk;
     else
         Losses = Losses+1;
     end
