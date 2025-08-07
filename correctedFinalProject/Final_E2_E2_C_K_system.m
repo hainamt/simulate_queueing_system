@@ -1,5 +1,5 @@
 clear ; close ;
-tic;
+
 global C;
 global K;
 global Losses;
@@ -19,6 +19,8 @@ k_values = c_values(1):max_queue_length;
 loss_probabilities = zeros(length(c_values),length(k_values));
 average_number_of_users = zeros(length(c_values),length(k_values));
 point_2_matrix=zeros(length(k_values),simulations_number);
+
+tic;
 % with this loop we evaluate the possibilities for the # of servers
 for c_idx = 1:length(c_values)
     %service rate changes as the # of servers
@@ -90,6 +92,9 @@ for c_idx = 1:length(c_values)
     end
 
 end
+duration = toc;
+fprintf('Simulation duration: %.2f seconds\n', duration);
+
 %%
 %subplot(2,1,1);
 figure()
@@ -150,5 +155,3 @@ yticks(2:2:26);
 xlabel("K");
 ylabel("Average number of users");
 title("Average number of users (CI)");
-
-toc
