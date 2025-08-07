@@ -64,6 +64,7 @@ def run_multiprocess_simulations(
     with mp.Pool(processes=num_processes) as pool:
         results = pool.map(run_single_simulation, configs)
 
+    results_file = None
     if save_results:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         results_file = os.path.join(result_dir, f"{timestamp}_results.jsonl")
@@ -77,4 +78,4 @@ def run_multiprocess_simulations(
         print(f"All results saved to {results_file}")
         print(f"Total: {len(configs)}, Successful: {successful_count}, Failed: {failed_count}")
 
-    return results
+    return results, results_file

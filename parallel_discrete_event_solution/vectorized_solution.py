@@ -10,7 +10,10 @@ class VectorizedSimulationResult:
     num_arrivals: np.ndarray
     num_losses: np.ndarray
     average_num_users: np.ndarray  # shape: (num_simulations,)
-    loss_probabilities: np.ndarray  # shape: (num_simulations,)
+    loss_probabilities: np.ndarray
+    state_residence_times: np.ndarray
+    state_probabilities: np.ndarray
+    total_simulation_times: np.ndarray
 
     def to_dict(self):
         return {
@@ -19,6 +22,9 @@ class VectorizedSimulationResult:
             "num_losses": self.num_losses.tolist(),
             "average_num_users": self.average_num_users.tolist(),
             "loss_probabilities": self.loss_probabilities.tolist(),
+            "state_residence_times": self.state_residence_times.tolist(),
+            "state_probabilities": self.state_probabilities.tolist(),
+            "total_simulation_times": self.total_simulation_times.tolist(),
         }
 
 
@@ -51,7 +57,8 @@ class VectorizedQueueSimulator:
 
         self.total_customers = np.zeros(self.num_simulations, dtype=int)
         self.server_states = np.zeros((self.num_simulations, self.C), dtype=int)
-        self.state_residence_time = np.zeros((self.num_simulations, self.K + 1))  # For states 0 to K
+        self.state_residence_time = np.zeros((self.num_simulations, self.K + 1))
+        self.actual_end_times = np.full(self.num_simulations, self.length_simulation, dtype=int)
 
         self.active_simulations = np.ones(self.num_simulations, dtype=bool)
 
@@ -194,9 +201,13 @@ class VectorizedQueueSimulator:
             # Check which simulations should stop
             finished = self.clk[active_sims] >= self.config.length_simulation
             finished_sims = active_sims[finished]
-            self.active_simulations[finished_sims] = False
 
-            # Continue with still active simulations
+            if len(finished_sims) > 0:
+                final_time_diff = self.actual_end_times[finished_sims] - self.previous_queue_change_time[finished_sims]
+                final_states = self.total_customers[finished_sims]
+                self.state_residence_time[finished_sims, final_states] += final_time_diff
+
+            self.active_simulations[finished_sims] = False
             still_active = active_sims[~finished]
             if len(still_active) == 0:
                 break
@@ -234,28 +245,28 @@ class VectorizedQueueSimulator:
         loss_probabilities[valid_arrivals] = self.num_losses[valid_arrivals] / self.num_arrivals[valid_arrivals]
 
         total_times = np.sum(self.state_residence_time, axis=1)
-        average_num_users = np.zeros(self.num_simulations)
+        state_probabilities = np.zeros((self.num_simulations, self.K + 1))
 
         valid_times = total_times > 0
         if np.any(valid_times):
+            state_probabilities[valid_times] = (
+                    self.state_residence_time[valid_times] / total_times[valid_times, np.newaxis]
+            )
+
+        average_num_users = np.zeros(self.num_simulations)
+        if np.any(valid_times):
             states = np.arange(self.K + 1)
-            weighted_sums = np.sum(self.state_residence_time * states[np.newaxis, :], axis=1)
-            average_num_users[valid_times] = weighted_sums[valid_times] / total_times[valid_times]
+            average_num_users[valid_times] = np.sum(
+                state_probabilities[valid_times] * states[np.newaxis, :], axis=1
+            )
 
         self.result = VectorizedSimulationResult(
             config=self.config,
             num_arrivals=self.num_arrivals.copy(),
             num_losses=self.num_losses.copy(),
             average_num_users=average_num_users.copy(),
-            loss_probabilities=loss_probabilities.copy())
-
-
-# def run_vectorized_simulations(sim_config: SimulationConfiguration) -> VectorizedQueueSimulator:
-#     print("Running vectorized simulations with config:")
-#     pprint(sim_config)
-#     q_simulator = VectorizedQueueSimulator(sim_config)
-#     start = time()
-#     q_simulator.simulate()
-#     end = time()
-#     print(f"Simulation took {end - start} seconds")
-#     return q_simulator
+            loss_probabilities=loss_probabilities.copy(),
+            state_residence_times=self.state_residence_time.copy(),
+            state_probabilities=state_probabilities.copy(),
+            total_simulation_times=total_times.copy()
+        )
