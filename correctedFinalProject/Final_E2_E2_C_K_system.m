@@ -93,8 +93,8 @@ for c_idx = 1:length(c_values)
 
 end
 duration = toc;
-fprintf('Simulation duration: %.2f seconds\n', duration);
-
+% Calculate and display the simulation duration
+fprintf('Simulation completed in %.2f seconds.\n', duration);
 %%
 %subplot(2,1,1);
 figure()

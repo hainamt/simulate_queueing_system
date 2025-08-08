@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 class SimulationConfiguration:
     simulation_id: int
     lambda_arrival: float
-    mu_service: float
+    rho: float
     num_arrival_stages: int
     num_service_stages: int
     C: int
@@ -15,8 +15,9 @@ class SimulationConfiguration:
     length_simulation: float = 50000
 
     @property
-    def rho(self):
-        return self.lambda_arrival / (self.C * self.mu_service)
+    def mu_service(self):
+        return self.lambda_arrival / (self.C * self.rho)
 
     def to_dict(self):
         return asdict(self)
+

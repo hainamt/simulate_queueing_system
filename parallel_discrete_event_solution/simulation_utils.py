@@ -23,7 +23,7 @@ def create_config_grid_ck(
             config = SimulationConfiguration(
                 simulation_id=simulation_id,
                 lambda_arrival=base_config.lambda_arrival,
-                mu_service=base_config.mu_service,
+                rho=base_config.rho,
                 num_arrival_stages=base_config.num_arrival_stages,
                 num_service_stages=base_config.num_service_stages,
                 C=c,

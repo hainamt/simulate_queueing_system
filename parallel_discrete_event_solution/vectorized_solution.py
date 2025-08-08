@@ -27,6 +27,10 @@ class VectorizedSimulationResult:
             "total_simulation_times": self.total_simulation_times.tolist(),
         }
 
+    def to_polar_df(self):
+        import polars as pl
+        return pl.DataFrame(self.to_dict())
+
 
 class VectorizedQueueSimulator:
 
@@ -36,6 +40,7 @@ class VectorizedQueueSimulator:
         self.K = config.K
 
         self.lambda_arrival = config.lambda_arrival
+        self.rho = config.rho
         self.mu_service = config.mu_service
 
         self.num_arrival_stages = config.num_arrival_stages
@@ -68,15 +73,12 @@ class VectorizedQueueSimulator:
 
         self.result: Optional[VectorizedSimulationResult] = None
 
-    def rand_exp(self, sim_indices, is_service=True):
+    def rand_exp(self, sim_indices, rate):
         size = len(sim_indices)
-        rate = self.mu_service if is_service else self.lambda_arrival
-        num_stages = self.num_service_stages if is_service else self.num_arrival_stages
-
         uniform_samples = self.rng.random(size)
-        exponential_samples = -np.log(1 - uniform_samples) / (num_stages * rate)
-
-        return exponential_samples if size > 1 else exponential_samples[0]
+        uniform_samples = np.where(uniform_samples == 0, self.rng.random(size), uniform_samples)
+        exponential_samples = -np.log(1 - uniform_samples) / rate
+        return exponential_samples if size > 1 else exponential_samples.item()
 
     def update_state_residence_time(self, sim_indices):
         time_diff = self.clk[sim_indices] - self.previous_queue_change_time[sim_indices]
@@ -86,16 +88,16 @@ class VectorizedQueueSimulator:
 
     def handle_a1_events(self, sim_indices):
         self.x_in[sim_indices] = 2
-
         self.event_table[sim_indices, 0] = np.inf
-        self.event_table[sim_indices, 1] = self.clk[sim_indices] + self.rand_exp(sim_indices)
+        self.event_table[sim_indices, 1] = self.clk[sim_indices] + self.rand_exp(sim_indices, 2 * self.lambda_arrival)
 
     def handle_a2_events(self, sim_indices):
+        # print(f"sim_indices: {sim_indices} go to a2 stage")
         self.num_arrivals[sim_indices] += 1
         can_enter = self.total_customers[sim_indices] < self.K
-
-        # get a list of simulations that have a customer entering the queue
         entering_sims = sim_indices[can_enter]
+
+        # print(f"entering_sims: {entering_sims}")
 
         if len(entering_sims) > 0:
             self.update_state_residence_time(entering_sims)
@@ -124,11 +126,10 @@ class VectorizedQueueSimulator:
                 valid_server_assignments = server_assignments[valid_mask]
 
                 if len(valid_entering_sims) > 0:
-                    # Update server states vectorially
                     self.server_states[valid_entering_sims, valid_server_assignments] = 1
 
                     s1_event_indices = self.num_arrival_stages + 2 * valid_server_assignments
-                    service_times = self.rand_exp(valid_entering_sims, is_service=True)
+                    service_times = self.rand_exp(valid_entering_sims, 2 * self.mu_service)
                     self.event_table[valid_entering_sims, s1_event_indices] = self.clk[valid_entering_sims] + service_times
 
             self.previous_queue_change_time[entering_sims] = self.clk[entering_sims]
@@ -139,7 +140,9 @@ class VectorizedQueueSimulator:
             self.num_losses[blocked_sims] += 1
 
         self.x_in[sim_indices] = 1
-        self.event_table[sim_indices, 0] = self.clk[sim_indices] + self.rand_exp(sim_indices, is_service=False)
+        # a1
+        self.event_table[sim_indices, 0] = self.clk[sim_indices] + self.rand_exp(sim_indices, 2 * self.lambda_arrival)
+        # a2
         self.event_table[sim_indices, 1] = np.inf
 
     def handle_s1_events(self,sim_indices, server_ids):
@@ -148,7 +151,7 @@ class VectorizedQueueSimulator:
         s2_event_indices = s1_event_indices + 1
 
         self.event_table[sim_indices, s1_event_indices] = np.inf
-        service_times = self.rand_exp(sim_indices, is_service=True)
+        service_times = self.rand_exp(sim_indices, 2 * self.mu_service)
         self.event_table[sim_indices, s2_event_indices] = self.clk[sim_indices] + service_times
 
     def handle_s2_events(self, sim_indices, server_ids):
@@ -173,7 +176,7 @@ class VectorizedQueueSimulator:
         if len(serving_sims) > 0:
             self.server_states[serving_sims, serving_servers] = 1
             serving_s1_indices = 2 + 2 * serving_servers
-            service_times = self.rand_exp(serving_sims)
+            service_times = self.rand_exp(serving_sims, 2 * self.mu_service)
             self.event_table[serving_sims, serving_s1_indices] = self.clk[serving_sims] + service_times
 
         self.event_table[sim_indices, s2_event_indices] = np.inf
@@ -181,7 +184,7 @@ class VectorizedQueueSimulator:
 
     def simulate(self):
         active_sims = np.arange(self.num_simulations)
-        self.event_table[active_sims, 0] = self.clk[active_sims] + self.rand_exp(active_sims, is_service=False)
+        self.event_table[active_sims, 0] = self.clk[active_sims] + self.rand_exp(active_sims, 2 * self.lambda_arrival)
 
         iteration = 0
         max_iterations = 1000000
@@ -190,15 +193,10 @@ class VectorizedQueueSimulator:
             active_sims = np.where(self.active_simulations)[0]
             if len(active_sims) == 0:
                 break
-
-            # Find the next event for each active simulation
             next_event_times = np.min(self.event_table[active_sims], axis=1)
             next_event_indices = np.argmin(self.event_table[active_sims], axis=1)
-
-            # Update clocks
             self.clk[active_sims] = next_event_times
 
-            # Check which simulations should stop
             finished = self.clk[active_sims] >= self.config.length_simulation
             finished_sims = active_sims[finished]
 
@@ -213,52 +211,38 @@ class VectorizedQueueSimulator:
                 break
 
             still_active_event_indices = next_event_indices[~finished]
-
-            # Group simulations by event type for vectorized processing
             for event_type in range(self.num_event_types):
                 event_mask = still_active_event_indices == event_type
                 if not np.any(event_mask):
                     continue
 
                 event_sims = still_active[event_mask]
-
-                if event_type == 0:  # A1 events
+                if event_type == 0:
                     self.handle_a1_events(event_sims)
-                elif event_type == 1:  # A2 events
+                elif event_type == 1:
                     self.handle_a2_events(event_sims)
                 else:
                     server_id = (event_type - 2) // 2
-                    if event_type % 2 == 0:  # S1 events (even indices >= 2)
+                    if event_type % 2 == 0:
                         server_ids = np.full(len(event_sims), server_id)
                         self.handle_s1_events(event_sims, server_ids)
-                    else:  # S2 events (odd indices >= 3)
+                    else:
                         server_ids = np.full(len(event_sims), server_id)
                         self.handle_s2_events(event_sims, server_ids)
 
             iteration += 1
 
-        self.calculate_final_statistics()
+        self.generate_statistics()
+        print(f"Finished in {iteration} iterations")
 
-    def calculate_final_statistics(self):
+    def generate_statistics(self):
         valid_arrivals = self.num_arrivals > 0
         loss_probabilities = np.zeros(self.num_simulations)
         loss_probabilities[valid_arrivals] = self.num_losses[valid_arrivals] / self.num_arrivals[valid_arrivals]
 
-        total_times = np.sum(self.state_residence_time, axis=1)
-        state_probabilities = np.zeros((self.num_simulations, self.K + 1))
-
-        valid_times = total_times > 0
-        if np.any(valid_times):
-            state_probabilities[valid_times] = (
-                    self.state_residence_time[valid_times] / total_times[valid_times, np.newaxis]
-            )
-
-        average_num_users = np.zeros(self.num_simulations)
-        if np.any(valid_times):
-            states = np.arange(self.K + 1)
-            average_num_users[valid_times] = np.sum(
-                state_probabilities[valid_times] * states[np.newaxis, :], axis=1
-            )
+        state_probabilities = self.state_residence_time / self.state_residence_time.sum(axis=1, keepdims=True)
+        states = np.arange(self.K + 1)
+        average_num_users = (state_probabilities * states).sum(axis=1)
 
         self.result = VectorizedSimulationResult(
             config=self.config,
@@ -268,5 +252,5 @@ class VectorizedQueueSimulator:
             loss_probabilities=loss_probabilities.copy(),
             state_residence_times=self.state_residence_time.copy(),
             state_probabilities=state_probabilities.copy(),
-            total_simulation_times=total_times.copy()
+            total_simulation_times=np.full(self.num_simulations, self.config.length_simulation)
         )
