@@ -1,6 +1,5 @@
 classdef VectorizedSimulator
     properties
-        Property1
         config SimulationConfiguration
         C uint8 = 2
         K uint8 = 2
@@ -65,6 +64,7 @@ classdef VectorizedSimulator
             obj.number_users_when_event = zeros(obj.num_simulations, obj.length_simulation);
 
             obj.clk = zeros(obj.num_simulations, 1);
+            obj.previous_queue_change_time = zeros(obj.num_simulations, 1);
 
             obj.total_customers = zeros(obj.num_simulations, 1);
             obj.server_states = zeros(obj.num_simulations, obj.C);
@@ -72,12 +72,11 @@ classdef VectorizedSimulator
             obj.actual_end_times = repmat(obj.length_simulation, obj.num_simulations, 1);
 
             obj.active_simulations = true(obj.num_simulations, 1);
-            obj.rng_seeds = randi(1e6, obj.num_simulations, 1);
-            obj.rng = RandStream('mt19937ar', 'Seed', sum(100*clock));
+            obj.rng = RandStream('mt19937ar', 'Seed', sum(100*datetime("now")));
 
         end
 
-        function exponential_samples = rand_exp(sim_indices, rate)
+        function exponential_samples = rand_exp(obj, sim_indices, rate)
             % Validate input
             if rate <= 0
                 error('Rate must be positive.');
@@ -94,9 +93,9 @@ classdef VectorizedSimulator
         end
 
         function update_state_residence_time(obj, sim_indices)
-            time_diff = obj.clk(sim_indices);
+            time_diff = obj.clk(sim_indices) - obj.previous_queue_change_time(sim_indices);
             current_states = obj.total_customers(sim_indices);
-            obj.state_residence_time(sim_indices, current_states) = obj.state_residence_time(sim_indices, current_states) + time_diff;
+            obj.state_residence_time(sim_indices, current_states + 1) = obj.state_residence_time(sim_indices, current_states) + time_diff;
         end
 
         function handle_a1_event(obj, sim_indices)
@@ -110,14 +109,14 @@ classdef VectorizedSimulator
             can_enter = obj.total_customers(sim_indices) < obj.K;
             entering_sims = sim_indices(can_enter);
 
-            if size(entering_sims) > 0
+            if ~isempty(entering_sims)
                 obj.update_state_residence_time(entering_sims);
                 obj.total_customers(entering_sims) = obj.total_customers(entering_sims) + 1;
 
                 server_states_entering = obj.server_states(entering_sims);
                 idle_mask = server_states_entering == 0;
                 has_idle_server = any(idle_mask, 2);
-                server_assignments = -ones([size(entering_sims), 1]);
+                server_assignments = -ones([length(entering_sims), 1]);
 
                 if any(has_idle_server)
                     [~, first_idle_indices] = max(idle_mask, [], 2);
@@ -127,7 +126,7 @@ classdef VectorizedSimulator
                     valid_entering_sims = entering_sims(valid_mask);
                     valid_server_assignments = server_assignments(valid_mask);
 
-                    if size(valid_server_assignments) > 0
+                    if ~isempty(valid_server_assignments)
                         obj.server_states(valid_entering_sims, valid_server_assignments) = 1;
                         s1_event_indices = obj.num_arrival_stages + 2 * valid_server_assignments;
                         service_times = obj.rand_exp(valid_entering_sims, 2* obj.mu);
@@ -139,8 +138,8 @@ classdef VectorizedSimulator
 
             blocked = obj.total_customers(sim_indices) >= obj.K;
             blocked_sims = sim_indices(blocked);
-            if size(blocked_sims) > 0
-                obj.num_losses = obj.num_losses + 1;
+            if ~isempty(blocked_sims)
+                obj.num_losses(blocked_sims) = obj.num_losses(blocked_sims) + 1;
             end
             obj.x_in(sim_indices) = 1;
             obj.event_table(sim_indices, 1) = obj.clk(sim_indices) + obj.rand_exp(sim_indices, 2*obj.lambda);
@@ -154,7 +153,7 @@ classdef VectorizedSimulator
 
             obj.event_table(sim_indices, s1_event_indices) = inf;
             service_times = obj.rand_exp(sim_indices, 2* obj.mu);
-            obj.event_table(valid_entering_sims, s2_event_indices) = obj.clk(valid_entering_sims) + service_times;
+            obj.event_table(sim_indices, s2_event_indices) = obj.clk(sim_indices) + service_times;
         end
 
         function handle_s2_event(obj, sim_indices, server_ids)
@@ -169,14 +168,15 @@ classdef VectorizedSimulator
 
             idle_sims = sim_indices(becomes_idle);
             idle_servers = server_ids(becomes_idle);
-            if size(idle_sims) > 0
+            if ~isempty(idle_sims)
                 obj.server_states(idle_sims, idle_servers) = 0;
                 idle_s1_indices = 2 + 2 * idle_servers;
                 obj.event_table(idle_sims, idle_s1_indices) = inf;
             end
 
+            serving_sims = sim_indices(continues_serving);
             serving_servers = server_ids(continues_serving);
-            if size(serving_sims) > 0
+            if ~isempty(serving_sims)
                 obj.server_states(serving_sims, serving_servers) = 1;
                 serving_s1_indices = 2 + 2 * serving_servers;
                 service_times = obj.rand_exp(serving_sims, 2 * obj.mu);
@@ -208,7 +208,7 @@ classdef VectorizedSimulator
 
                 if ~isempty(finished_sims)
                     final_time_diff = obj.actual_end_times(finished_sims) - obj.previous_queue_change_time(finished_sims);
-                    final_states = obj.total_customers(finished_sims) + 1; % MATLAB indexing
+                    final_states = obj.total_customers(finished_sims) + 1;
                     linear_indices = sub2ind(size(obj.state_residence_time), finished_sims, final_states);
                     obj.state_residence_time(linear_indices) = obj.state_residence_time(linear_indices) + final_time_diff;
                 end
@@ -233,11 +233,11 @@ classdef VectorizedSimulator
                     elseif event_type == 2
                         obj.handle_a2_event(event_sims);
                     else
-                        server_id = ceil((event_type - 2) / 2);
-                        if mod(event_type, 2) == 1 % odd event_type (s1 events)
+                        server_id = floor((event_type - 3) / 2) + 1;
+                        if mod(event_type, 2) == 1
                             server_ids = repmat(server_id, length(event_sims), 1);
                             obj.handle_s1_event(event_sims, server_ids);
-                        else % even event_type (s2 events)
+                        else
                             server_ids = repmat(server_id, length(event_sims), 1);
                             obj.handle_s2_event(event_sims, server_ids);
                         end
@@ -257,7 +257,7 @@ classdef VectorizedSimulator
             loss_probabilities(valid_arrivals) = obj.num_losses(valid_arrivals) ./ obj.num_arrivals(valid_arrivals);
         
             state_probabilities = obj.state_residence_time ./ sum(obj.state_residence_time, 2);
-            states = (0:obj.K)'; % Column vector from 0 to K
+            states = (0:obj.K)';
             average_num_users = sum(state_probabilities .* states', 2);
         
             obj.result = VectorizedSimulationResult(obj.config, ...
