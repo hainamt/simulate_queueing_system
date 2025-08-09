@@ -1,7 +1,7 @@
 import polars as pl
 import matplotlib.pyplot as plt
 from typing import Dict, List, Optional
-from parallel_discrete_event_solution.vectorized_solution import VectorizedSimulationResult
+from parallel_python_solution.vectorized_solution import VectorizedSimulationResult
 
 
 class StatisticalAnalyzer:

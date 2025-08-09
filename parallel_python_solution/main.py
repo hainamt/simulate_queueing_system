@@ -1,5 +1,5 @@
 from configuration import SimulationConfiguration
-from parallel_discrete_event_solution.analysis import StatisticalAnalyzer
+from parallel_python_solution.analysis import StatisticalAnalyzer
 from simulation_utils import create_config_grid_ck, run_multiprocess_simulations, run_single_simulation
 import os
 from time import time

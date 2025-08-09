@@ -9,7 +9,7 @@ class VectorizedSimulationResult:
     config: SimulationConfiguration
     num_arrivals: np.ndarray
     num_losses: np.ndarray
-    average_num_users: np.ndarray  # shape: (num_simulations,)
+    average_num_users: np.ndarray
     loss_probabilities: np.ndarray
     state_residence_times: np.ndarray
     state_probabilities: np.ndarray

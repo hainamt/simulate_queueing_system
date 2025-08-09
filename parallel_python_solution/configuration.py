@@ -11,7 +11,7 @@ class SimulationConfiguration:
     C: int
     K: int
 
-    num_simulations: int = 10000
+    num_simulations: int = 100
     length_simulation: float = 50000
 
     @property
@@ -20,4 +20,3 @@ class SimulationConfiguration:
 
     def to_dict(self):
         return asdict(self)
-
