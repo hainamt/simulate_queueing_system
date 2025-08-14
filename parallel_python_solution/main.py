@@ -20,28 +20,31 @@ if __name__ == "__main__":
         num_simulations=100,
         length_simulation=50000)
 
-    # result =  run_single_simulation(base_config)
-    # pprint(result)
+    tic = time()
+    result =  run_single_simulation(base_config)
+    toc = time()
+    print(f"Time taken: {toc - tic:.2f} seconds")
+    print(result)
 
     c_values = [2, 3]
     k_max = 30
 
-    configs = create_config_grid_ck(base_config, c_values, k_max)
-    print(f"Created {len(configs)} configurations")
-    print(f"Maximum number of available processors: {os.cpu_count()}")
-    start = time()
-    results, results_file = run_multiprocess_simulations(
-        configs=configs,
-        num_processes=5,
-        save_results=True,
-        result_dir="./multiprocess_results")
-    end = time()
-
-    successful = sum(1 for result in results if "error" not in result)
-    failed = len(results) - successful
-
-    print(f"Total time taken: {end - start:.2f} seconds")
-    print(f"\nSimulation Complete!, Successful: {successful}, Failed: {failed}")
+    # configs = create_config_grid_ck(base_config, c_values, k_max)
+    # print(f"Created {len(configs)} configurations")
+    # print(f"Maximum number of available processors: {os.cpu_count()}")
+    # start = time()
+    # results, results_file = run_multiprocess_simulations(
+    #     configs=configs,
+    #     num_processes=5,
+    #     save_results=True,
+    #     result_dir="./multiprocess_results")
+    # end = time()
+    #
+    # successful = sum(1 for result in results if "error" not in result)
+    # failed = len(results) - successful
+    #
+    # print(f"Total time taken: {end - start:.2f} seconds")
+    # print(f"\nSimulation Complete!, Successful: {successful}, Failed: {failed}")
 
     # confidence_level: float = 0.95
     # analyzer = StatisticalAnalyzer(confidence_level)

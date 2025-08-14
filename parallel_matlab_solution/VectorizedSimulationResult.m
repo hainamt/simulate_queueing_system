@@ -39,5 +39,14 @@ classdef VectorizedSimulationResult
             dict.state_probabilities = obj.state_probabilities;
             dict.total_simulation_times = obj.total_simulation_times;
         end
+
+        function table_result = to_table(obj)
+            table_result = table(obj.num_arrivals, obj.num_losses, ...
+                obj.average_num_users, obj.loss_probabilities, ...
+                obj.total_simulation_times, ...
+                'VariableNames', {'NumArrivals', 'NumLosses', 'AverageNumUsers', ...
+                'LossProbabilities', 'TotalSimulationTimes'});
+        end
+
     end
 end

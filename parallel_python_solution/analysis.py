@@ -3,6 +3,22 @@ import matplotlib.pyplot as plt
 from typing import Dict, List, Optional
 from parallel_python_solution.vectorized_solution import VectorizedSimulationResult
 
+def plot_mean_grouped_by_ck(df: pl.DataFrame, alias: str):
+    plt.figure(figsize=(10, 6))
+    for c in df["C"].unique():
+        mask = df["C"] == c
+        plt.plot(df.filter(mask)["K"],
+                 df.filter(mask)[alias],
+                 label=f"C={c}",
+                 marker='o')
+
+    plt.xlabel("Buffer Length (K)")
+    plt.ylabel(alias.title())
+    plt.title(alias.title())
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
 
 class StatisticalAnalyzer:
     def __init__(self, confidence_level: float,
@@ -28,20 +44,3 @@ class StatisticalAnalyzer:
                 alias)
         ).sort(["C", "K"]))
         return df.explode(alias).explode(alias)
-
-
-    # def plot_mean_grouped_by_ck(self, df: pl.DataFrame, alias: str):
-    #     plt.figure(figsize=(10, 6))
-    #     for c in df["C"].unique():
-    #         mask = df["C"] == c
-    #         plt.plot(df.filter(mask)["K"],
-    #                  df.filter(mask)[alias],
-    #                  label=f"C={c}",
-    #                  marker='o')
-    #
-    #     plt.xlabel("Buffer Length (K)")
-    #     plt.ylabel(alias.title())
-    #     plt.title(alias.title())
-    #     plt.grid(True)
-    #     plt.legend()
-    #     plt.show()
