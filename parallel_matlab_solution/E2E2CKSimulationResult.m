@@ -1,7 +1,4 @@
-classdef VectorizedSimulationResult
-    %VECTORIZEDSIMULATIONRESULT Summary of this class goes here
-    %   Detailed explanation goes here
-
+classdef E2E2CKSimulationResult
     properties
         config SimulationConfiguration
         num_arrivals (:,1) uint32
@@ -14,7 +11,7 @@ classdef VectorizedSimulationResult
     end
 
     methods
-        function obj = VectorizedSimulationResult(config, num_arrivals, num_losses, ...
+        function obj = E2E2CKSimulationResult(config, num_arrivals, num_losses, ...
                 average_num_users, loss_probabilities, state_residence_times, ...
                 state_probabilities, total_simulation_times)
             

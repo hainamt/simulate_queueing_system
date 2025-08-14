@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 
 @dataclass
-class VectorizedSimulationResult:
+class VectorizedE2E2CKSimulationResult:
     config: SimulationConfiguration
     num_arrivals: np.ndarray
     num_losses: np.ndarray
@@ -43,9 +43,6 @@ class VectorizedQueueSimulator:
         self.rho = config.rho
         self.mu_service = config.mu_service
 
-        self.num_arrival_stages = config.num_arrival_stages
-        self.num_service_stages = config.num_service_stages
-
         self.num_simulations = config.num_simulations
         self.length_simulation = config.length_simulation
 
@@ -53,7 +50,7 @@ class VectorizedQueueSimulator:
         self.num_losses = np.zeros(self.num_simulations, dtype=int)
 
         self.x_in = np.ones(self.num_simulations, dtype=int)
-        self.num_event_types = self.num_arrival_stages + self.num_service_stages * self.C
+        self.num_event_types = 2 + 2 * self.C
         self.event_table = np.full((self.num_simulations, self.num_event_types), np.inf)
         self.number_users_when_event = np.zeros((self.num_simulations, self.length_simulation))
 
@@ -66,12 +63,13 @@ class VectorizedQueueSimulator:
         self.actual_end_times = np.full(self.num_simulations, self.length_simulation, dtype=int)
 
         self.active_simulations = np.ones(self.num_simulations, dtype=bool)
+        self.max_iterations = config.max_iterations
 
         base_seed = config.simulation_id
         self.rng_seeds = np.arange(base_seed, base_seed + self.num_simulations)
         self.rng = np.random.RandomState(base_seed)
 
-        self.result: Optional[VectorizedSimulationResult] = None
+        self.result: Optional[VectorizedE2E2CKSimulationResult] = None
 
     def rand_exp(self, sim_indices, rate):
         size = len(sim_indices)
@@ -128,7 +126,7 @@ class VectorizedQueueSimulator:
                 if len(valid_entering_sims) > 0:
                     self.server_states[valid_entering_sims, valid_server_assignments] = 1
 
-                    s1_event_indices = self.num_arrival_stages + 2 * valid_server_assignments
+                    s1_event_indices = 2 + 2 * valid_server_assignments
                     service_times = self.rand_exp(valid_entering_sims, 2 * self.mu_service)
                     self.event_table[valid_entering_sims, s1_event_indices] = self.clk[valid_entering_sims] + service_times
 
@@ -187,9 +185,7 @@ class VectorizedQueueSimulator:
         self.event_table[active_sims, 0] = self.clk[active_sims] + self.rand_exp(active_sims, 2 * self.lambda_arrival)
 
         iteration = 0
-        max_iterations = 1000000
-
-        while np.any(self.active_simulations) and iteration < max_iterations:
+        while np.any(self.active_simulations) and iteration < self.max_iterations:
             active_sims = np.where(self.active_simulations)[0]
             if len(active_sims) == 0:
                 break
@@ -244,7 +240,7 @@ class VectorizedQueueSimulator:
         states = np.arange(self.K + 1)
         average_num_users = (state_probabilities * states).sum(axis=1)
 
-        self.result = VectorizedSimulationResult(
+        self.result = VectorizedE2E2CKSimulationResult(
             config=self.config,
             num_arrivals=self.num_arrivals.copy(),
             num_losses=self.num_losses.copy(),

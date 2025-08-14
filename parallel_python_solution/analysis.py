@@ -1,7 +1,7 @@
 import polars as pl
 import matplotlib.pyplot as plt
 from typing import Dict, List, Optional
-from parallel_python_solution.vectorized_solution import VectorizedSimulationResult
+from parallel_python_solution.simulator import VectorizedE2E2CKSimulationResult
 
 def plot_mean_grouped_by_ck(df: pl.DataFrame, alias: str):
     plt.figure(figsize=(10, 6))
@@ -22,7 +22,7 @@ def plot_mean_grouped_by_ck(df: pl.DataFrame, alias: str):
 
 class StatisticalAnalyzer:
     def __init__(self, confidence_level: float,
-                 results: Optional[List[VectorizedSimulationResult]] = None,
+                 results: Optional[List[VectorizedE2E2CKSimulationResult]] = None,
                  results_file: Optional[str] = None):
         self.confidence_level = confidence_level
 

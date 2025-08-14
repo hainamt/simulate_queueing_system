@@ -12,7 +12,7 @@ function run_single()
         100, ...                     % num_simulations
         50000, ...                 % length_simulation
         1000000);                       % max_iterations
-    simulator = VectorizedSimulator(base_config);
+    simulator = E2E2CKSimulator(base_config);
     fprintf("Running a simulation..\n")
     tic;
     simulator.simulate();

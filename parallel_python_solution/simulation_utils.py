@@ -1,4 +1,4 @@
-from vectorized_solution import VectorizedQueueSimulator
+from simulator import VectorizedQueueSimulator
 from configuration import SimulationConfiguration
 from typing import List
 from datetime import datetime
@@ -24,8 +24,6 @@ def create_config_grid_ck(
                 simulation_id=simulation_id,
                 lambda_arrival=base_config.lambda_arrival,
                 rho=base_config.rho,
-                num_arrival_stages=base_config.num_arrival_stages,
-                num_service_stages=base_config.num_service_stages,
                 C=c,
                 K=k,
                 num_simulations=base_config.num_simulations,

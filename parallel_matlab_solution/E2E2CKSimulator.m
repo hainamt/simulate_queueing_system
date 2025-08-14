@@ -1,4 +1,4 @@
-classdef VectorizedSimulator < handle
+classdef E2E2CKSimulator < handle
     properties
         config SimulationConfiguration
         C uint8 = 2
@@ -29,11 +29,11 @@ classdef VectorizedSimulator < handle
         max_iterations (1,1) uint32 = 10
         rng
 
-        result VectorizedSimulationResult
+        result E2E2CKSimulationResult
     end
 
     methods
-        function obj = VectorizedSimulator(config)
+        function obj = E2E2CKSimulator(config)
             arguments
                 config SimulationConfiguration
             end
@@ -253,7 +253,7 @@ classdef VectorizedSimulator < handle
             states = double(0:obj.K)';
             average_num_users = sum(state_probabilities .* states', 2);
         
-            obj.result = VectorizedSimulationResult(obj.config, ...
+            obj.result = E2E2CKSimulationResult(obj.config, ...
                 obj.num_arrivals, ...
                 obj.num_losses, ...
                 average_num_users, ...

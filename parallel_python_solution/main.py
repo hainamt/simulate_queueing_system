@@ -6,28 +6,23 @@ from time import time
 
 
 if __name__ == "__main__":
-    lambda_arrival = 1 / 10
-    rho = 1.05
-
     base_config = SimulationConfiguration(
         simulation_id=1000,
         lambda_arrival=1/10,
         rho=1.05,
-        num_arrival_stages=2,
-        num_service_stages=2,
         C=2,
-        K=10,
+        K=30,
         num_simulations=100,
-        length_simulation=50000)
+        length_simulation=50000,
+        max_iterations=1000000)
 
     tic = time()
     result =  run_single_simulation(base_config)
     toc = time()
     print(f"Time taken: {toc - tic:.2f} seconds")
-    print(result)
 
-    c_values = [2, 3]
-    k_max = 30
+    # c_values = [2, 3]
+    # k_max = 30
 
     # configs = create_config_grid_ck(base_config, c_values, k_max)
     # print(f"Created {len(configs)} configurations")

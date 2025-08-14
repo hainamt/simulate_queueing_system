@@ -6,13 +6,13 @@ class SimulationConfiguration:
     simulation_id: int
     lambda_arrival: float
     rho: float
-    num_arrival_stages: int
-    num_service_stages: int
     C: int
     K: int
 
     num_simulations: int = 100
     length_simulation: float = 50000
+
+    max_iterations: int = 1000000
 
     @property
     def mu_service(self):
