@@ -1,4 +1,4 @@
-from simulator import VectorizedQueueSimulator
+from simulator import VectorizedQueueSimulator, VectorizedE2E2CKSimulationResult
 from configuration import SimulationConfiguration
 from typing import List
 from datetime import datetime
@@ -35,23 +35,21 @@ def create_config_grid_ck(
     return configs
 
 def run_single_simulation(config: SimulationConfiguration):
+    simulator = VectorizedQueueSimulator(config)
     try:
-        print(f"Starting simulation: C={config.C}, K={config.K}, ID={config.simulation_id}")
-        simulator = VectorizedQueueSimulator(config)
         simulator.simulate()
-        result_dict = simulator.result.to_dict()
         print(f"Completed simulation: C={config.C}, K={config.K}, ID={config.simulation_id}")
-        return result_dict
     except Exception as e:
         print(f"Error in simulation C={config.C}, K={config.K}, ID={config.simulation_id}: {str(e)}")
-        return {"error": str(e)}
+        simulator.result.error = str(e)
+    return simulator.result
 
 
 def run_multiprocess_simulations(
         configs: List[SimulationConfiguration],
         num_processes: int = None,
         save_results: bool = True,
-        result_dir: str = "./results"):
+        result_dir: str = "./results") -> (List[VectorizedE2E2CKSimulationResult], str):
     if num_processes is None:
         num_processes = min(mp.cpu_count(), len(configs))
 
@@ -66,14 +64,11 @@ def run_multiprocess_simulations(
     if save_results:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         results_file = os.path.join(result_dir, f"{timestamp}_results.jsonl")
-        successful_count = 0
-        failed_count = 0
 
         with open(results_file, "w", encoding="utf-8") as f:
-            for result_dict in results:
-                f.write(json.dumps(result_dict, ensure_ascii=False) + "\n")
+            for result in results:
+                f.write(json.dumps(result.to_dict(), ensure_ascii=False) + "\n")
 
         print(f"All results saved to {results_file}")
-        print(f"Total: {len(configs)}, Successful: {successful_count}, Failed: {failed_count}")
 
     return results, results_file

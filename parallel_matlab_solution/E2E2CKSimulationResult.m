@@ -8,12 +8,13 @@ classdef E2E2CKSimulationResult
         state_residence_times (:,:) double
         state_probabilities (:,:) double
         total_simulation_times (:,1) double
+        total_iterations (:,1) uint32
     end
 
     methods
         function obj = E2E2CKSimulationResult(config, num_arrivals, num_losses, ...
                 average_num_users, loss_probabilities, state_residence_times, ...
-                state_probabilities, total_simulation_times)
+                state_probabilities, total_simulation_times, total_iterations)
             
             obj.config = config;
             obj.num_arrivals = num_arrivals;
@@ -23,6 +24,7 @@ classdef E2E2CKSimulationResult
             obj.state_residence_times = state_residence_times;
             obj.state_probabilities = state_probabilities;
             obj.total_simulation_times = total_simulation_times;
+            obj.total_iterations = total_iterations; 
         end
         
         function dict = to_dict(obj)
@@ -35,6 +37,7 @@ classdef E2E2CKSimulationResult
             dict.state_residence_times = obj.state_residence_times;
             dict.state_probabilities = obj.state_probabilities;
             dict.total_simulation_times = obj.total_simulation_times;
+            dict.total_iterations = obj.total_iterations;
         end
 
         function table_result = to_table(obj)

@@ -27,6 +27,7 @@ classdef E2E2CKSimulator < handle
         active_simulations (:,1) logical
 
         max_iterations (1,1) uint32 = 10
+        total_iterations (1,1) uint32 = 0
         rng
 
         result E2E2CKSimulationResult
@@ -108,17 +109,17 @@ classdef E2E2CKSimulator < handle
 
                 server_states_entering = obj.server_states(entering_sims, :);
 
-                idle_mask = server_states_entering == 0; % rows: sims, cols: servers
+                idle_mask = server_states_entering == 0;
                 has_idle_server = any(idle_mask, 2);
                 server_assignments = -ones([length(entering_sims), 1]);
 
                 if any(has_idle_server)
-                    [~, first_idle_indices] = max(idle_mask, [], 2); % first idle server per sim
+                    [~, first_idle_indices] = max(idle_mask, [], 2);
                     server_assignments(has_idle_server) = first_idle_indices(has_idle_server);
 
                     valid_mask = server_assignments >= 0;
                     valid_entering_sims = entering_sims(valid_mask);
-                    valid_server_assignments = server_assignments(valid_mask); % simulation that assigned with server
+                    valid_server_assignments = server_assignments(valid_mask);
 
                     if ~isempty(valid_server_assignments)
                         lin_idx_srv = sub2ind(size(obj.server_states), valid_entering_sims, valid_server_assignments);
@@ -184,9 +185,8 @@ classdef E2E2CKSimulator < handle
         %% simulation
         function simulate(obj)
             obj.event_table(obj.active_simulations, 1) = obj.clk(obj.active_simulations) + obj.rand_exp(obj.active_simulations, 2 * obj.lambda);
-            iteration = 0;
 
-            while any(obj.active_simulations) && iteration < obj.max_iterations
+            while any(obj.active_simulations) && obj.total_iterations < obj.max_iterations
                 indices_current_simulations = find(obj.active_simulations);
                 if isempty(indices_current_simulations)
                     break;
@@ -235,20 +235,20 @@ classdef E2E2CKSimulator < handle
                 % fprintf('Event table after handling:\n');
                 % disp(obj.event_table);
 
-                iteration = iteration + 1;
+                obj.total_iterations = obj.total_iterations + 1;
                 % fprintf('--------------------------------------\n');
             end
 
             obj.generate_statistics();
-            fprintf('Finished in %d iterations\n', iteration);
+            % fprintf('Finished in %d iterations\n', iteration);
         end
 
         function obj = generate_statistics(obj)
-            fprintf('Generating statistics...\n');
+            % fprintf('Generating statistics...\n');
             valid_arrivals = obj.num_arrivals > 0;
             loss_probabilities = zeros(obj.num_simulations, 1);
-            loss_probabilities(valid_arrivals) = obj.num_losses(valid_arrivals) ./ obj.num_arrivals(valid_arrivals);
-        
+            loss_probabilities(valid_arrivals) = double(obj.num_losses(valid_arrivals)) ./ double(obj.num_arrivals(valid_arrivals));
+
             state_probabilities = obj.state_residence_time ./ sum(obj.state_residence_time, 2);
             states = double(0:obj.K)';
             average_num_users = sum(state_probabilities .* states', 2);
@@ -260,7 +260,8 @@ classdef E2E2CKSimulator < handle
                 loss_probabilities, ...
                 obj.state_residence_time, ...
                 state_probabilities, ...
-                repmat(obj.length_simulation, obj.num_simulations, 1));
+                repmat(obj.length_simulation, obj.num_simulations, 1), ...
+                obj.total_iterations);
         end
     end
 end
