@@ -86,7 +86,7 @@ classdef E2E2CKSimulator < handle
 
         function update_state_residence_time(obj, sim_indices)
             time_diff = obj.clk(sim_indices) - obj.previous_queue_change_time(sim_indices);
-            current_states = obj.total_customers(sim_indices) + 1; % 1-based
+            current_states = obj.total_customers(sim_indices) + 1;
             lin_idx = sub2ind(size(obj.state_residence_time), sim_indices, current_states);
             obj.state_residence_time(lin_idx) = obj.state_residence_time(lin_idx) + time_diff;
         end
